@@ -12,6 +12,7 @@ $routes = [
     '/login'    => 'login.php',
     '/register' => 'register.php',
     '/logout'   => 'logout.php',
+    '/profil'   => 'profil.php',
     '/resetpassword' => 'resetpassword.php'
 ];
 

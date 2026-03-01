@@ -1,4 +1,5 @@
 <?php
+session_start();
 
 include __DIR__ . '/../database/db_connection.php';
 
@@ -34,7 +35,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['register'])) {
             $stmt->bind_param("sss", $username, $email, $hashedPassword);
             //si tout vas bien execute query et envoi login
             if ($stmt->execute()) {
-                header("Location: login");
+                $_SESSION['email'] = $email;
+                $_SESSION['username'] = $username;
+            header("Location: home");
+            exit();
             } else {
                 $message = "Erreur lors de l'insertion.";
             }
@@ -46,12 +50,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['register'])) {
 
 
 $title = "Register - Ma Boutique";
-require __DIR__ . '/../../templates/header.php';
 ?>
 
 <body>
     <div class="container">
         <h2>Inscription</h2>
+        <a href="home">Home</href>
+        </a>
 
         <?php if (!empty($message)): ?>
             <p class="notification"><?php echo htmlspecialchars($message); ?></p>
@@ -62,7 +67,6 @@ require __DIR__ . '/../../templates/header.php';
             <input type="email" name="email" placeholder="Email" required>
             <input type="password" name="password" placeholder="Mot de passe" required>
             <input type="password" name="confirm_password" placeholder="Confirmer le mot de passe" required>
-
             <button type="submit" name="register">S'inscrire</button>
         </form>
     </div>

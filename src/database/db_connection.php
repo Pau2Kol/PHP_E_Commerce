@@ -2,11 +2,11 @@
 //totalement pas safe de mettre les infos la faudra faut qqchose
 $servername = "localhost";
 $username = "root";
-$password = "";
+$db_pass = "";
 $dbname = "users";
 
 
-$conn = new mysqli($servername, $username, $password, $dbname);
+$conn = new mysqli($servername, $username, $db_pass, $dbname);
 
 
 if ($conn->connect_error) {

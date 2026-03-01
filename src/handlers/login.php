@@ -21,24 +21,37 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['login'])) {
         $stmt->fetch();
     //dcp on vérifie le mdp
         if (password_verify($password, $db_password)) {
+            $stmt = $conn->prepare("SELECT balance, PP, role, id FROM userdata WHERE email = ?");
+            $stmt->bind_param("s", $email);
+            $stmt->execute();
+            $stmt->store_result();
+
+            $stmt->bind_result($balance, $PP, $role, $id);
+            $stmt->fetch();
+            
+            $_SESSION['balance'] = $balance;
+            $_SESSION['PP'] = $PP;
+            $_SESSION['role'] = $role;
             $_SESSION['email'] = $email;
             $_SESSION['username'] = $db_username;
+            $_SESSION['user_id'] = $id;
             header("Location: home");
             exit();
         } else {
-            $message = "Identifiants invalides.";
+            $message = "mdp.";
         }
     } else {
-        $message = "Identifiants invalides.";
+        $message = "email";
     }
     $stmt->close();
 }
 
 $title = "Login - Ma Boutique";
 
-require __DIR__ . '/../../templates/header.php';
 ?>
-
+<h1>Login</h1>
+<a href="home">Home</href>
+ </a>
 <body>
     <form action="login" method="post">
         <input type="email" name="email" placeholder="Email" required>

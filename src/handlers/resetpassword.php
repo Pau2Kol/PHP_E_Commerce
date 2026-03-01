@@ -50,9 +50,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
 
 $title = "Reset Password";
-require __DIR__ . '/../../templates/header.php';
 ?>
 
+<a href="home">Home</href>
+</a>
 <body>
     <h2>Réinitialiser le mot de passe</h2>
     

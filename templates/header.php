@@ -1,5 +1,6 @@
 <?php
 session_start();
+$_SESSION['role'] = $_SESSION['role'] ?? 'guest';
 ?>
 <!DOCTYPE html>
 <html lang="fr">
@@ -11,6 +12,12 @@ session_start();
 </head>
 <body>
     <header>
+        <picture>
+            <a href="profil">
+            <img src="uploads/<?php echo $_SESSION['PP'] ?? "default.png" ; ?>" alt="Image de profil">
+            </a>
+        </picture>
+
         <nav>
             <ul>
             <!-- Faudra faire un truc pour les paths j'ai la flemme normalement le .htaccess il redirige tout vers index.php il sert de handler mais jsp pourquoi la il veut pas dcp j'ai ça en attendant  -->
@@ -18,6 +25,7 @@ session_start();
                 <li><a href="login">Connexion</a></li>
                 <li><a href="register">Inscription</a></li>
                 <li><a href="logout">Deconnexion</a></li>
+                <li><a href="profil">Profil</a></li>
             </ul>
         </nav>
     </header>
