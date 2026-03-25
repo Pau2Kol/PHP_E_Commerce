@@ -1,44 +1,35 @@
 <?php
 session_start();
-
 include __DIR__ . '/../database/db_connection.php';
 
 $message = "";
 
-
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['register'])) {
     $username = $_POST['username'];
-    $email = $_POST['email'];
+    $email    = $_POST['email'];
     $password = $_POST['password'];
-    $confirm = $_POST['confirm_password'];
+    $confirm  = $_POST['confirm_password'];
 
-    //check pswd
     if ($password !== $confirm) {
         $message = "Les mots de passe ne correspondent pas.";
     } else {
-        //l'algo par default c bcrypt
         $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-        
-        //prépare query évite sql injection
+
         $check = $conn->prepare("SELECT email FROM userdata WHERE email = ?");
         $check->bind_param("s", $email);
         $check->execute();
         $check->store_result();
 
-        //check si le mail existe déjà dans la bdd
         if ($check->num_rows > 0) {
             $message = "Cet email est déjà utilisé.";
         } else {
-
             $stmt = $conn->prepare("INSERT INTO userdata (username, email, password) VALUES (?, ?, ?)");
-            //type sss dit qu'on accepte que des strings en values
             $stmt->bind_param("sss", $username, $email, $hashedPassword);
-            //si tout vas bien execute query et envoi login
             if ($stmt->execute()) {
-                $_SESSION['balance'] = 0;
-                $_SESSION['PP'] = "default.png";
-                $_SESSION['role'] = "user";
-                $_SESSION['email'] = $email;
+                $_SESSION['balance']  = 0;
+                $_SESSION['PP']       = "default.png";
+                $_SESSION['role']     = "user";
+                $_SESSION['email']    = $email;
                 $_SESSION['username'] = $username;
 
                 $stmt = $conn->prepare("SELECT id FROM userdata WHERE email = ?");
@@ -47,13 +38,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['register'])) {
                 $stmt->store_result();
                 $stmt->bind_result($id);
                 $stmt->fetch();
-
                 $_SESSION['user_id'] = $id;
-                    
-            header("Location: home");
-            exit();
+
+                header("Location: home");
+                exit();
             } else {
-                $message = "Erreur lors de l'insertion.";
+                $message = "Erreur lors de l'inscription.";
             }
             $stmt->close();
         }
@@ -61,30 +51,63 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['register'])) {
     }
 }
 
-
-$title = "Register - Ma Boutique";
+$title = "Inscription";
 ?>
-
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><?php echo $title; ?></title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
 <body>
-    <div class="container">
-        <h2>Inscription</h2>
-        <a href="home">Home</href>
-        </a>
 
+<header>
+    <span class="header-brand">✦ Ma Boutique</span>
+    <nav><ul>
+        <li><a href="home">Accueil</a></li>
+        <li><a href="login">Connexion</a></li>
+    </ul></nav>
+</header>
+
+<main>
+<div class="auth-wrapper">
+    <h1>Créer un compte</h1>
+    <p class="subtitle">Rejoignez la boutique</p>
+
+    <div class="card">
         <?php if (!empty($message)): ?>
-            <p class="notification"><?php echo htmlspecialchars($message); ?></p>
+            <div class="notification notification-error" style="margin-bottom:1.2rem;">
+                <?php echo htmlspecialchars($message); ?>
+            </div>
         <?php endif; ?>
 
         <form action="register" method="post">
-            <input type="text" name="username" placeholder="Nom d'utilisateur" required>
-            <input type="email" name="email" placeholder="Email" required>
-            <input type="password" name="password" placeholder="Mot de passe" required>
-            <input type="password" name="confirm_password" placeholder="Confirmer le mot de passe" required>
-            <button type="submit" name="register">S'inscrire</button>
+            <div class="form-group">
+                <label for="username">Nom d'utilisateur</label>
+                <input type="text" id="username" name="username" placeholder="VotreNom" required>
+            </div>
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" placeholder="vous@exemple.com" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Mot de passe</label>
+                <input type="password" id="password" name="password" placeholder="••••••••" required>
+            </div>
+            <div class="form-group">
+                <label for="confirm_password">Confirmer le mot de passe</label>
+                <input type="password" id="confirm_password" name="confirm_password" placeholder="••••••••" required>
+            </div>
+            <button type="submit" name="register" class="w-full">S'inscrire</button>
         </form>
     </div>
-</body>
 
-<?php 
-require __DIR__ . '/../../templates/footer.php'; 
-?>
+    <div class="auth-links">
+        Déjà un compte ? <a href="login">Se connecter</a>
+    </div>
+</div>
+</main>
+
+<?php require __DIR__ . '/../../templates/footer.php'; ?>
