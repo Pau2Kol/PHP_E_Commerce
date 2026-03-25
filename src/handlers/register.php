@@ -5,8 +5,8 @@ include __DIR__ . '/../database/db_connection.php';
 $message = "";
 
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['register'])) {
-    $username = $_POST['username'];
-    $email    = $_POST['email'];
+    $username = trim($_POST['username']);
+    $email    = trim($_POST['email']);
     $password = $_POST['password'];
     $confirm  = $_POST['confirm_password'];
 
@@ -15,13 +15,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['register'])) {
     } else {
         $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 
-        $check = $conn->prepare("SELECT email FROM userdata WHERE email = ?");
-        $check->bind_param("s", $email);
+        // Verification que l'email et le username sont tous les deux uniques
+        $check = $conn->prepare("SELECT id FROM userdata WHERE email = ? OR username = ?");
+        $check->bind_param("ss", $email, $username);
         $check->execute();
         $check->store_result();
 
         if ($check->num_rows > 0) {
-            $message = "Cet email est déjà utilisé.";
+            $message = "Cet email ou ce nom d'utilisateur est deja utilise.";
         } else {
             $stmt = $conn->prepare("INSERT INTO userdata (username, email, password) VALUES (?, ?, ?)");
             $stmt->bind_param("sss", $username, $email, $hashedPassword);
@@ -32,13 +33,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['register'])) {
                 $_SESSION['email']    = $email;
                 $_SESSION['username'] = $username;
 
-                $stmt = $conn->prepare("SELECT id FROM userdata WHERE email = ?");
-                $stmt->bind_param("s", $email);
-                $stmt->execute();
-                $stmt->store_result();
-                $stmt->bind_result($id);
-                $stmt->fetch();
+                // Recuperation de l'id genere pour la session
+                $stmt2 = $conn->prepare("SELECT id FROM userdata WHERE email = ?");
+                $stmt2->bind_param("s", $email);
+                $stmt2->execute();
+                $stmt2->store_result();
+                $stmt2->bind_result($id);
+                $stmt2->fetch();
                 $_SESSION['user_id'] = $id;
+                $stmt2->close();
 
                 header("Location: home");
                 exit();
@@ -64,7 +67,7 @@ $title = "Inscription";
 <body>
 
 <header>
-    <span class="header-brand">✦ Ma Boutique</span>
+    <span class="header-brand">Ma Boutique</span>
     <nav><ul>
         <li><a href="home">Accueil</a></li>
         <li><a href="login">Connexion</a></li>
@@ -73,7 +76,7 @@ $title = "Inscription";
 
 <main>
 <div class="auth-wrapper">
-    <h1>Créer un compte</h1>
+    <h1>Creer un compte</h1>
     <p class="subtitle">Rejoignez la boutique</p>
 
     <div class="card">
@@ -94,18 +97,18 @@ $title = "Inscription";
             </div>
             <div class="form-group">
                 <label for="password">Mot de passe</label>
-                <input type="password" id="password" name="password" placeholder="••••••••" required>
+                <input type="password" id="password" name="password" placeholder="Min. 6 caracteres" required>
             </div>
             <div class="form-group">
                 <label for="confirm_password">Confirmer le mot de passe</label>
-                <input type="password" id="confirm_password" name="confirm_password" placeholder="••••••••" required>
+                <input type="password" id="confirm_password" name="confirm_password" placeholder="Identique au mot de passe" required>
             </div>
             <button type="submit" name="register" class="w-full">S'inscrire</button>
         </form>
     </div>
 
     <div class="auth-links">
-        Déjà un compte ? <a href="login">Se connecter</a>
+        Deja un compte ? <a href="login">Se connecter</a>
     </div>
 </div>
 </main>

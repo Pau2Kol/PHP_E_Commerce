@@ -1,22 +1,20 @@
 <?php
-$title = "Modifier l'article";
-
+session_start();
 require __DIR__ . '/../database/db_connection.php';
-require __DIR__ . '/../../templates/header.php';
 
-// Acces reserve aux utilisateurs connectes
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] === 'guest') {
-    header("Location: login");
+// Acces reserve aux administrateurs
+if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
+    header("Location: home");
     exit();
 }
 
 $article_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 if ($article_id === 0) {
-    header("Location: home");
+    header("Location: admin");
     exit();
 }
 
-// Recuperation de l'article et de son stock courant
+// Recuperation de l'article et de son stock
 $stmt = $conn->prepare("
     SELECT article.*, COALESCE(stock.quantity, 0) AS stock_quantity
     FROM article
@@ -26,23 +24,12 @@ $stmt = $conn->prepare("
 $stmt->bind_param("i", $article_id);
 $stmt->execute();
 $result = $stmt->get_result();
-
 if ($result->num_rows === 0) {
-    header("Location: home");
+    header("Location: admin");
     exit();
 }
-
 $article = $result->fetch_assoc();
 $stmt->close();
-
-$is_author = (int)$_SESSION['user_id'] === (int)$article['author_id'];
-$is_admin  = $_SESSION['role'] === 'admin';
-
-// Seul l'auteur ou un administrateur peut modifier
-if (!$is_author && !$is_admin) {
-    header("Location: home");
-    exit();
-}
 
 $message      = "";
 $message_type = "error";
@@ -53,11 +40,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_article'])) {
     $stmt->bind_param("i", $article_id);
     $stmt->execute();
     $stmt->close();
-    header("Location: home");
+    header("Location: admin");
     exit();
 }
 
-// Mise a jour de l'article et du stock
+// Mise a jour de l'article
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_article'])) {
     $name        = trim($_POST['name']);
     $description = trim($_POST['description']);
@@ -77,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_article'])) {
         $stmt->execute();
         $stmt->close();
 
-        // Mise a jour ou insertion du stock selon s'il existe deja
+        // Mise a jour du stock (insertion ou mise a jour si la ligne existe deja)
         $stmt = $conn->prepare("INSERT INTO stock (article_id, quantity) VALUES (?, ?) ON DUPLICATE KEY UPDATE quantity = ?");
         $stmt->bind_param("iii", $article_id, $quantity, $quantity);
         $stmt->execute();
@@ -95,16 +82,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_article'])) {
         $message = "Erreur lors de la mise a jour : " . $e->getMessage();
     }
 }
+
+$title = "Modifier l'article (admin)";
+require __DIR__ . '/../../templates/header.php';
 ?>
 
 <div class="sell-container">
-    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem; margin-bottom:1.5rem;">
-        <div>
-            <a href="detail?id=<?= $article_id ?>" class="back-link" style="font-size:0.85rem; color:var(--ink-muted); display:inline-flex; align-items:center; gap:0.3rem;">&#8592; Retour a l'article</a>
-            <h1 style="margin-top:0.3rem;">Modifier l'article</h1>
-        </div>
+    <a href="admin" class="back-link" style="font-size:0.85rem; color:var(--ink-muted); display:inline-flex; align-items:center; gap:0.3rem; margin-bottom:1rem;">
+        &#8592; Retour au panel admin
+    </a>
 
-        <form action="edit?id=<?= $article_id ?>" method="POST" onsubmit="return confirm('Supprimer definitivement cet article ?')" style="margin:0;">
+    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem; margin-bottom:1.5rem;">
+        <h1>Modifier l'article</h1>
+        <form action="admin_edit_article?id=<?= $article_id ?>" method="POST" onsubmit="return confirm('Supprimer definitivement cet article ?')" style="margin:0;">
             <button type="submit" name="delete_article" class="btn btn-danger">Supprimer l'article</button>
         </form>
     </div>
@@ -116,7 +106,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_article'])) {
     <?php endif; ?>
 
     <div class="card">
-        <form action="edit?id=<?= $article_id ?>" method="POST" enctype="multipart/form-data">
+        <form action="admin_edit_article?id=<?= $article_id ?>" method="POST" enctype="multipart/form-data">
             <div class="form-group">
                 <label for="name">Nom du produit</label>
                 <input type="text" id="name" name="name" value="<?= htmlspecialchars($article['name']) ?>" required>

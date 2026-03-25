@@ -2,6 +2,7 @@
 session_start();
 require __DIR__ . '/../database/db_connection.php';
 
+// Acces reserve aux administrateurs
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     header("Location: home");
     exit();
@@ -10,6 +11,9 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
 $title = "Panel Admin";
 require __DIR__ . '/../../templates/header.php';
 
+// --- Actions rapides depuis ce panneau ---
+
+// Suppression d'un utilisateur
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_user'])) {
     $target_id = (int)$_POST['target_id'];
     if ($target_id !== (int)$_SESSION['user_id']) {
@@ -18,18 +22,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_user'])) {
         $stmt->execute();
         $stmt->close();
     }
-    header("Location: admin"); exit();
+    header("Location: admin");
+    exit();
 }
 
+// Suppression d'un article
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_article'])) {
     $article_id = (int)$_POST['article_id'];
     $stmt = $conn->prepare("DELETE FROM article WHERE id = ?");
     $stmt->bind_param("i", $article_id);
     $stmt->execute();
     $stmt->close();
-    header("Location: admin"); exit();
+    header("Location: admin");
+    exit();
 }
 
+// Changement de role
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_role'])) {
     $target_id = (int)$_POST['target_id'];
     $new_role  = in_array($_POST['new_role'], ['user', 'admin']) ? $_POST['new_role'] : 'user';
@@ -39,53 +47,74 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_role'])) {
         $stmt->execute();
         $stmt->close();
     }
-    header("Location: admin"); exit();
+    header("Location: admin");
+    exit();
 }
 
+// Statistiques globales
 $nb_users    = $conn->query("SELECT COUNT(*) AS n FROM userdata")->fetch_assoc()['n'];
 $nb_articles = $conn->query("SELECT COUNT(*) AS n FROM article")->fetch_assoc()['n'];
 $nb_invoices = $conn->query("SELECT COUNT(*) AS n FROM invoice")->fetch_assoc()['n'];
 $total_rev   = $conn->query("SELECT IFNULL(SUM(amount), 0) AS s FROM invoice")->fetch_assoc()['s'];
 
+// Listes completes
 $users    = $conn->query("SELECT id, username, email, balance, role FROM userdata ORDER BY id DESC")->fetch_all(MYSQLI_ASSOC);
-$articles = $conn->query("SELECT article.id, article.name, article.price, article.published_at, userdata.username AS author FROM article JOIN userdata ON article.author_id = userdata.id ORDER BY article.published_at DESC LIMIT 50")->fetch_all(MYSQLI_ASSOC);
-$invoices = $conn->query("SELECT invoice.id, invoice.amount, invoice.transaction_date, userdata.username FROM invoice JOIN userdata ON invoice.user_id = userdata.id ORDER BY invoice.transaction_date DESC LIMIT 50")->fetch_all(MYSQLI_ASSOC);
+$articles = $conn->query("
+    SELECT article.id, article.name, article.price, article.published_at,
+           userdata.username AS author,
+           COALESCE(stock.quantity, 0) AS stock_quantity
+    FROM article
+    JOIN userdata ON article.author_id = userdata.id
+    LEFT JOIN stock ON stock.article_id = article.id
+    ORDER BY article.published_at DESC
+    LIMIT 50
+")->fetch_all(MYSQLI_ASSOC);
+$invoices = $conn->query("
+    SELECT invoice.id, invoice.amount, invoice.transaction_date, userdata.username
+    FROM invoice
+    JOIN userdata ON invoice.user_id = userdata.id
+    ORDER BY invoice.transaction_date DESC
+    LIMIT 50
+")->fetch_all(MYSQLI_ASSOC);
 ?>
 
 <div class="page-header">
     <h1>Panel Administrateur</h1>
-    <p>Bienvenue, <strong style="color:var(--ink);"><?= htmlspecialchars($_SESSION['username']) ?></strong></p>
+    <p>Connecte en tant que <strong style="color:var(--ink);"><?= htmlspecialchars($_SESSION['username']) ?></strong></p>
 </div>
 
+<!-- Statistiques -->
 <div class="admin-grid">
     <div class="admin-stat-card">
-        <div class="admin-stat-icon">👤</div>
+        <div class="admin-stat-icon">U</div>
         <div class="admin-stat-number"><?= $nb_users ?></div>
         <div class="admin-stat-label">Utilisateurs</div>
     </div>
     <div class="admin-stat-card">
-        <div class="admin-stat-icon">🛍️</div>
+        <div class="admin-stat-icon">A</div>
         <div class="admin-stat-number"><?= $nb_articles ?></div>
         <div class="admin-stat-label">Articles en vente</div>
     </div>
     <div class="admin-stat-card">
-        <div class="admin-stat-icon">🧾</div>
+        <div class="admin-stat-icon">F</div>
         <div class="admin-stat-number"><?= $nb_invoices ?></div>
-        <div class="admin-stat-label">Commandes — <?= number_format($total_rev, 2) ?> €</div>
+        <div class="admin-stat-label">Commandes &mdash; <?= number_format($total_rev, 2) ?> EUR</div>
     </div>
 </div>
 
+<!-- Onglets -->
 <div class="admin-tabs">
-    <button class="admin-tab active" onclick="showTab('users', this)">👤 Utilisateurs</button>
-    <button class="admin-tab" onclick="showTab('articles', this)">📦 Articles</button>
-    <button class="admin-tab" onclick="showTab('invoices', this)">🧾 Commandes</button>
+    <button class="admin-tab active" onclick="showTab('users', this)">Utilisateurs</button>
+    <button class="admin-tab" onclick="showTab('articles', this)">Articles</button>
+    <button class="admin-tab" onclick="showTab('invoices', this)">Commandes</button>
 </div>
 
+<!-- Onglet utilisateurs -->
 <div id="tab-users" class="tab-panel active">
     <div style="overflow-x:auto;">
     <table class="admin-table">
         <thead><tr>
-            <th>#</th><th>Pseudo</th><th>Email</th><th>Solde</th><th>Rôle</th><th>Actions</th>
+            <th>#</th><th>Pseudo</th><th>Email</th><th>Solde</th><th>Role</th><th>Actions</th>
         </tr></thead>
         <tbody>
         <?php foreach ($users as $u): ?>
@@ -93,24 +122,26 @@ $invoices = $conn->query("SELECT invoice.id, invoice.amount, invoice.transaction
                 <td><?= (int)$u['id'] ?></td>
                 <td><a href="profil?id=<?= (int)$u['id'] ?>"><?= htmlspecialchars($u['username']) ?></a></td>
                 <td><?= htmlspecialchars($u['email']) ?></td>
-                <td><?= number_format($u['balance'], 2) ?> €</td>
+                <td><?= number_format($u['balance'], 2) ?> EUR</td>
                 <td><span class="badge badge-<?= htmlspecialchars($u['role']) ?>"><?= htmlspecialchars($u['role']) ?></span></td>
                 <td>
                     <div class="action-btns">
                         <?php if ($u['id'] != $_SESSION['user_id']): ?>
-                        <form action="admin" method="POST" class="inline-form">
-                            <input type="hidden" name="target_id" value="<?= (int)$u['id'] ?>">
-                            <input type="hidden" name="new_role" value="<?= $u['role'] === 'admin' ? 'user' : 'admin' ?>">
-                            <button type="submit" name="change_role" class="btn btn-secondary" style="padding:0.28rem 0.75rem;font-size:0.75rem;">
-                                <?= $u['role'] === 'admin' ? '↓ user' : '↑ admin' ?>
-                            </button>
-                        </form>
-                        <form action="admin" method="POST" class="inline-form" onsubmit="return confirm('Supprimer <?= htmlspecialchars(addslashes($u['username'])) ?> ?')">
-                            <input type="hidden" name="target_id" value="<?= (int)$u['id'] ?>">
-                            <button type="submit" name="delete_user" class="btn btn-danger" style="padding:0.28rem 0.75rem;font-size:0.75rem;">Supprimer</button>
-                        </form>
+                            <!-- Lien vers la sous-page de modification -->
+                            <a href="admin_edit_user?id=<?= (int)$u['id'] ?>" class="btn btn-secondary" style="padding:0.28rem 0.75rem; font-size:0.75rem;">Modifier</a>
+                            <form action="admin" method="POST" class="inline-form" onsubmit="return confirm('Supprimer <?= htmlspecialchars(addslashes($u['username'])) ?> ?')">
+                                <input type="hidden" name="target_id" value="<?= (int)$u['id'] ?>">
+                                <button type="submit" name="delete_user" class="btn btn-danger" style="padding:0.28rem 0.75rem; font-size:0.75rem;">Supprimer</button>
+                            </form>
+                            <form action="admin" method="POST" class="inline-form">
+                                <input type="hidden" name="target_id" value="<?= (int)$u['id'] ?>">
+                                <input type="hidden" name="new_role" value="<?= $u['role'] === 'admin' ? 'user' : 'admin' ?>">
+                                <button type="submit" name="change_role" class="btn btn-secondary" style="padding:0.28rem 0.75rem; font-size:0.75rem;">
+                                    <?= $u['role'] === 'admin' ? 'Retirer admin' : 'Promouvoir admin' ?>
+                                </button>
+                            </form>
                         <?php else: ?>
-                            <em class="self-label">Vous</em>
+                            <em class="self-label">Votre compte</em>
                         <?php endif; ?>
                     </div>
                 </td>
@@ -121,25 +152,31 @@ $invoices = $conn->query("SELECT invoice.id, invoice.amount, invoice.transaction
     </div>
 </div>
 
+<!-- Onglet articles -->
 <div id="tab-articles" class="tab-panel">
     <div style="overflow-x:auto;">
     <table class="admin-table">
         <thead><tr>
-            <th>#</th><th>Nom</th><th>Prix</th><th>Vendeur</th><th>Date</th><th>Actions</th>
+            <th>#</th><th>Nom</th><th>Prix</th><th>Stock</th><th>Vendeur</th><th>Date</th><th>Actions</th>
         </tr></thead>
         <tbody>
         <?php foreach ($articles as $art): ?>
             <tr>
                 <td><?= (int)$art['id'] ?></td>
                 <td><?= htmlspecialchars($art['name']) ?></td>
-                <td><?= number_format($art['price'], 2) ?> €</td>
+                <td><?= number_format($art['price'], 2) ?> EUR</td>
+                <td><?= (int)$art['stock_quantity'] ?></td>
                 <td><?= htmlspecialchars($art['author']) ?></td>
                 <td><?= htmlspecialchars(substr($art['published_at'], 0, 10)) ?></td>
                 <td>
-                    <form action="admin" method="POST" class="inline-form" onsubmit="return confirm('Supprimer cet article ?')">
-                        <input type="hidden" name="article_id" value="<?= (int)$art['id'] ?>">
-                        <button type="submit" name="delete_article" class="btn btn-danger" style="padding:0.28rem 0.75rem;font-size:0.75rem;">Supprimer</button>
-                    </form>
+                    <div class="action-btns">
+                        <!-- Lien vers la sous-page de modification d'article -->
+                        <a href="admin_edit_article?id=<?= (int)$art['id'] ?>" class="btn btn-secondary" style="padding:0.28rem 0.75rem; font-size:0.75rem;">Modifier</a>
+                        <form action="admin" method="POST" class="inline-form" onsubmit="return confirm('Supprimer cet article ?')">
+                            <input type="hidden" name="article_id" value="<?= (int)$art['id'] ?>">
+                            <button type="submit" name="delete_article" class="btn btn-danger" style="padding:0.28rem 0.75rem; font-size:0.75rem;">Supprimer</button>
+                        </form>
+                    </div>
                 </td>
             </tr>
         <?php endforeach; ?>
@@ -148,6 +185,7 @@ $invoices = $conn->query("SELECT invoice.id, invoice.amount, invoice.transaction
     </div>
 </div>
 
+<!-- Onglet commandes -->
 <div id="tab-invoices" class="tab-panel">
     <div style="overflow-x:auto;">
     <table class="admin-table">
@@ -159,7 +197,7 @@ $invoices = $conn->query("SELECT invoice.id, invoice.amount, invoice.transaction
             <tr>
                 <td><?= (int)$inv['id'] ?></td>
                 <td><?= htmlspecialchars($inv['username']) ?></td>
-                <td><?= number_format($inv['amount'], 2) ?> €</td>
+                <td><?= number_format($inv['amount'], 2) ?> EUR</td>
                 <td><?= htmlspecialchars($inv['transaction_date']) ?></td>
             </tr>
         <?php endforeach; ?>
@@ -170,8 +208,8 @@ $invoices = $conn->query("SELECT invoice.id, invoice.amount, invoice.transaction
 
 <script>
 function showTab(name, btn) {
-    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+    document.querySelectorAll('.admin-tab').forEach(function(t) { t.classList.remove('active'); });
     document.getElementById('tab-' + name).classList.add('active');
     btn.classList.add('active');
 }

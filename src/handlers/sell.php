@@ -4,6 +4,7 @@ $title = "Vendre un produit";
 require __DIR__ . '/../database/db_connection.php';
 require __DIR__ . '/../../templates/header.php';
 
+// Acces reserve aux utilisateurs connectes
 if (!isset($_SESSION['role']) || $_SESSION['role'] == "guest") {
     header("Location: login");
     exit();
@@ -13,26 +14,38 @@ $sell_message = "";
 $sell_type    = "error";
 
 if (isset($_POST["submit_sell"])) {
-    $product_name = $_POST["product_name"];
-    $description  = $_POST["description"];
-    $price        = $_POST["price"];
+    $product_name = trim($_POST["product_name"]);
+    $description  = trim($_POST["description"]);
+    $price        = (float)$_POST["price"];
+    $quantity     = max(1, (int)$_POST["quantity"]);
     $author_id    = (int)$_SESSION['user_id'];
 
     if (isset($_FILES["product_image"]) && $_FILES["product_image"]["error"] === UPLOAD_ERR_OK) {
         $image_data = file_get_contents($_FILES["product_image"]["tmp_name"]);
 
-        $stmt = $conn->prepare("INSERT INTO article (name, description, price, author_id, image_data) VALUES (?, ?, ?, ?, ?)");
-        $stmt->bind_param("ssdis", $product_name, $description, $price, $author_id, $image_data);
+        // Transaction : creation de l'article et de son stock en une seule operation atomique
+        $conn->begin_transaction();
+        try {
+            $stmt = $conn->prepare("INSERT INTO article (name, description, price, author_id, image_data) VALUES (?, ?, ?, ?, ?)");
+            $stmt->bind_param("ssdis", $product_name, $description, $price, $author_id, $image_data);
+            $stmt->execute();
+            $new_article_id = $conn->insert_id;
+            $stmt->close();
 
-        if ($stmt->execute()) {
-            $sell_message = "Produit mis en vente avec succès !";
+            $stmt = $conn->prepare("INSERT INTO stock (article_id, quantity) VALUES (?, ?)");
+            $stmt->bind_param("ii", $new_article_id, $quantity);
+            $stmt->execute();
+            $stmt->close();
+
+            $conn->commit();
+            $sell_message = "Produit mis en vente avec succes.";
             $sell_type    = "success";
-        } else {
-            $sell_message = "Erreur lors de la mise en vente : " . $conn->error;
+        } catch (Exception $e) {
+            $conn->rollback();
+            $sell_message = "Erreur lors de la mise en vente : " . $e->getMessage();
         }
-        $stmt->close();
     } else {
-        $sell_message = "Veuillez sélectionner une image valide.";
+        $sell_message = "Veuillez selectionner une image valide.";
     }
 }
 ?>
@@ -54,11 +67,15 @@ if (isset($_POST["submit_sell"])) {
             </div>
             <div class="form-group">
                 <label for="description">Description</label>
-                <textarea id="description" name="description" placeholder="Décrivez l'état et les caractéristiques..." required></textarea>
+                <textarea id="description" name="description" placeholder="Decrivez l'etat et les caracteristiques..." required></textarea>
             </div>
             <div class="form-group">
-                <label for="price">Prix (€)</label>
+                <label for="price">Prix unitaire (EUR)</label>
                 <input type="number" id="price" name="price" step="0.01" min="0" placeholder="0.00" required>
+            </div>
+            <div class="form-group">
+                <label for="quantity">Quantite disponible</label>
+                <input type="number" id="quantity" name="quantity" min="1" value="1" required>
             </div>
             <div class="form-group">
                 <label for="product_image">Image du produit</label>
