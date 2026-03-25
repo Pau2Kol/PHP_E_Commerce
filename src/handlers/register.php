@@ -15,13 +15,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['register'])) {
     } else {
         $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 
-        $check = $conn->prepare("SELECT email FROM userdata WHERE email = ?");
-        $check->bind_param("s", $email);
+        $check = $conn->prepare("SELECT id FROM userdata WHERE email = ? OR username = ?");
+        $check->bind_param("ss", $email, $username);
         $check->execute();
         $check->store_result();
 
         if ($check->num_rows > 0) {
-            $message = "Cet email est déjà utilisé.";
+            $message = "Cet email ou ce nom d'utilisateur est déjà utilisé.";
         } else {
             $stmt = $conn->prepare("INSERT INTO userdata (username, email, password) VALUES (?, ?, ?)");
             $stmt->bind_param("sss", $username, $email, $hashedPassword);

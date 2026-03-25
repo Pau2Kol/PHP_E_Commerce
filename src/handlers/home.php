@@ -4,7 +4,7 @@ $title = "Accueil — Ma Boutique";
 require __DIR__ . "/../database/db_connection.php";
 require __DIR__ . '/../../templates/header.php';
 
-$articles = $conn->query("SELECT id, name, description, price, published_at, author_id, image_data FROM article LIMIT 0, 20");
+$articles = $conn->query("SELECT id, name, description, price, published_at, author_id, image_data FROM article ORDER BY published_at DESC LIMIT 20");
 ?>
 
 <div class="page-header">
@@ -28,14 +28,15 @@ $articles = $conn->query("SELECT id, name, description, price, published_at, aut
     }
 ?>
     <article>
-        <?php if ($article['image_data']): ?>
-            <img src="data:<?= $image_type ?>;base64,<?= base64_encode($article['image_data']) ?>" alt="<?= htmlspecialchars($article['name']) ?>">
-        <?php else: ?>
-            <img src="uploads/default.png" alt="Image par défaut">
-        <?php endif; ?>
-
-        <h2><?= htmlspecialchars($article['name']) ?></h2>
-        <p><?= htmlspecialchars(mb_strimwidth($article['description'], 0, 80, '…')) ?></p>
+        <a href="detail?id=<?= (int)$article['id'] ?>" style="display:block;text-decoration:none;color:inherit;">
+            <?php if ($article['image_data']): ?>
+                <img src="data:<?= $image_type ?>;base64,<?= base64_encode($article['image_data']) ?>" alt="<?= htmlspecialchars($article['name']) ?>">
+            <?php else: ?>
+                <img src="uploads/default.png" alt="Image par défaut">
+            <?php endif; ?>
+            <h2><?= htmlspecialchars($article['name']) ?></h2>
+            <p><?= htmlspecialchars(mb_strimwidth($article['description'], 0, 80, '…')) ?></p>
+        </a>
         <strong><?= number_format($article['price'], 2) ?> €</strong>
         <small>Publié le <?= htmlspecialchars(substr($article['published_at'], 0, 10)) ?></small>
 

@@ -59,26 +59,26 @@ $invoices = $conn->query("SELECT invoice.id, invoice.amount, invoice.transaction
 
 <div class="admin-grid">
     <div class="admin-stat-card">
-        <div class="admin-stat-icon">👤</div>
+        <div class="admin-stat-icon"></div>
         <div class="admin-stat-number"><?= $nb_users ?></div>
         <div class="admin-stat-label">Utilisateurs</div>
     </div>
     <div class="admin-stat-card">
-        <div class="admin-stat-icon">🛍️</div>
+        <div class="admin-stat-icon"></div>
         <div class="admin-stat-number"><?= $nb_articles ?></div>
         <div class="admin-stat-label">Articles en vente</div>
     </div>
     <div class="admin-stat-card">
-        <div class="admin-stat-icon">🧾</div>
+        <div class="admin-stat-icon"></div>
         <div class="admin-stat-number"><?= $nb_invoices ?></div>
         <div class="admin-stat-label">Commandes — <?= number_format($total_rev, 2) ?> €</div>
     </div>
 </div>
 
 <div class="admin-tabs">
-    <button class="admin-tab active" onclick="showTab('users', this)">👤 Utilisateurs</button>
-    <button class="admin-tab" onclick="showTab('articles', this)">📦 Articles</button>
-    <button class="admin-tab" onclick="showTab('invoices', this)">🧾 Commandes</button>
+    <button class="admin-tab active" onclick="showTab('users', this)"> Utilisateurs</button>
+    <button class="admin-tab" onclick="showTab('articles', this)"> Articles</button>
+    <button class="admin-tab" onclick="showTab('invoices', this)"> Commandes</button>
 </div>
 
 <div id="tab-users" class="tab-panel active">
