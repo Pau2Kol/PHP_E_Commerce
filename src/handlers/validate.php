@@ -2,6 +2,7 @@
 session_start();
 require __DIR__ . '/../database/db_connection.php';
 
+// Acces reserve aux utilisateurs connectes
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] === 'guest') {
     header("Location: login");
     exit();
@@ -14,10 +15,13 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['confirm_purchase']))
 
 $user_id = (int)$_SESSION['user_id'];
 
+// Recuperation du panier avec le stock disponible pour chaque article
 $stmt = $conn->prepare("
-    SELECT article.id AS article_id, article.price, article.name
+    SELECT article.id AS article_id, article.price, article.name,
+           COALESCE(stock.quantity, 0) AS stock_quantity
     FROM cart
     JOIN article ON cart.article_id = article.id
+    LEFT JOIN stock ON stock.article_id = article.id
     WHERE cart.user_id = ?
 ");
 $stmt->bind_param("i", $user_id);
@@ -31,6 +35,16 @@ if (empty($cart_items)) {
     $_SESSION['flash_type']    = "error";
     header("Location: cart");
     exit();
+}
+
+// Verification du stock avant tout traitement
+foreach ($cart_items as $item) {
+    if ((int)$item['stock_quantity'] <= 0) {
+        $_SESSION['flash_message'] = "L'article \"" . $item['name'] . "\" n'est plus disponible en stock.";
+        $_SESSION['flash_type']    = "error";
+        header("Location: cart");
+        exit();
+    }
 }
 
 $total = array_sum(array_column($cart_items, 'price'));
@@ -64,17 +78,28 @@ if (isset($_POST['finalize_order'])) {
     } else {
         $conn->begin_transaction();
         try {
+            // Debit du solde utilisateur
             $stmt = $conn->prepare("UPDATE userdata SET balance = balance - ? WHERE id = ?");
             $stmt->bind_param("di", $total, $user_id);
             $stmt->execute();
             $stmt->close();
 
+            // Creation de la facture
             $stmt = $conn->prepare("INSERT INTO invoice (user_id, amount, billing_address, billing_city, billing_zip) VALUES (?, ?, ?, ?, ?)");
             $stmt->bind_param("idsss", $user_id, $total, $billing_address, $billing_city, $billing_zip);
             $stmt->execute();
             $invoice_id = $conn->insert_id;
             $stmt->close();
 
+            // Decrementation du stock pour chaque article achete
+            foreach ($cart_items as $item) {
+                $stmt = $conn->prepare("UPDATE stock SET quantity = quantity - 1 WHERE article_id = ? AND quantity > 0");
+                $stmt->bind_param("i", $item['article_id']);
+                $stmt->execute();
+                $stmt->close();
+            }
+
+            // Vidage du panier
             $stmt = $conn->prepare("DELETE FROM cart WHERE user_id = ?");
             $stmt->bind_param("i", $user_id);
             $stmt->execute();
@@ -83,7 +108,7 @@ if (isset($_POST['finalize_order'])) {
             $conn->commit();
 
             $_SESSION['balance']       = $balance - $total;
-            $_SESSION['flash_message'] = "✦ Commande validée ! Facture #" . $invoice_id . " — " . number_format($total, 2) . " € débités.";
+            $_SESSION['flash_message'] = "Commande validee. Facture #" . $invoice_id . " - " . number_format($total, 2) . " EUR debites.";
             $_SESSION['flash_type']    = "success";
             header("Location: profil");
             exit();
@@ -97,26 +122,26 @@ if (isset($_POST['finalize_order'])) {
 ?>
 
 <div class="validate-container">
-    <a href="cart" class="back-link">← Retour au panier</a>
+    <a href="cart" class="back-link">&#8592; Retour au panier</a>
     <h1>Finaliser la commande</h1>
 
     <div class="validate-grid">
         <div>
             <div class="card" style="margin-bottom:1.5rem;">
-                <h2 style="font-size:1.1rem; margin-bottom:1rem;">Récapitulatif</h2>
+                <h2 style="font-size:1.1rem; margin-bottom:1rem;">Recapitulatif</h2>
                 <ul class="invoice-list">
                     <?php foreach ($cart_items as $item): ?>
                         <li>
                             <span><?= htmlspecialchars($item['name']) ?></span>
-                            <span class="invoice-amount"><?= number_format($item['price'], 2) ?> €</span>
+                            <span class="invoice-amount"><?= number_format($item['price'], 2) ?> EUR</span>
                         </li>
                     <?php endforeach; ?>
                 </ul>
                 <div style="display:flex; justify-content:space-between; align-items:baseline; margin-top:1rem; padding-top:1rem; border-top:1px solid var(--border);">
                     <span style="font-size:0.8rem; color:var(--ink-muted); text-transform:uppercase; letter-spacing:0.06em;">Total</span>
-                    <span style="font-family:var(--font-display); font-size:1.8rem; color:var(--accent);"><?= number_format($total, 2) ?> €</span>
+                    <span style="font-family:var(--font-display); font-size:1.8rem; color:var(--accent);"><?= number_format($total, 2) ?> EUR</span>
                 </div>
-                <p style="font-size:0.8rem; margin-top:0.5rem;">Solde après achat : <strong style="color:var(--ink);"><?= number_format($balance - $total, 2) ?> €</strong></p>
+                <p style="font-size:0.8rem; margin-top:0.5rem;">Solde apres achat : <strong style="color:var(--ink);"><?= number_format($balance - $total, 2) ?> EUR</strong></p>
             </div>
         </div>
 
@@ -147,7 +172,7 @@ if (isset($_POST['finalize_order'])) {
                     </div>
                 </div>
                 <button type="submit" name="finalize_order" class="w-full" style="margin-top:0.5rem;">
-                    ✦ Confirmer la commande
+                    Confirmer la commande
                 </button>
             </form>
         </div>
