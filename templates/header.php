@@ -14,7 +14,7 @@ $_SESSION['role'] = $_SESSION['role'] ?? 'guest';
     <header>
         <picture>
             <a href="profil">
-            <img src="uploads/<?php echo $_SESSION['PP'] ?? "default.png" ; ?>" alt="Image de profil">
+            <img src="uploads/<?php  //echo $_SESSION['PP'] ?? "default.png" ; ?>" alt="Image de profil">
             </a>
         </picture>
 
