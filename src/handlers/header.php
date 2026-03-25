@@ -12,7 +12,11 @@ $_SESSION['role'] = $_SESSION['role'] ?? 'guest';
 </head>
 <body>
     <header>
-        <span class="header-brand">✦ Ma Boutique</span>
+        <picture>
+            <a href="profil">
+                <img src="uploads/<?php echo htmlspecialchars($_SESSION['PP'] ?? 'default.png'); ?>" alt="Photo de profil">
+            </a>
+        </picture>
 
         <nav>
             <ul>
@@ -32,13 +36,5 @@ $_SESSION['role'] = $_SESSION['role'] ?? 'guest';
                 <?php endif; ?>
             </ul>
         </nav>
-
-        <?php if (isset($_SESSION['user_id']) && $_SESSION['role'] !== 'guest'): ?>
-        <picture>
-            <a href="profil">
-                <img src="uploads/<?php echo htmlspecialchars($_SESSION['PP'] ?? 'default.png'); ?>" alt="Profil">
-            </a>
-        </picture>
-        <?php endif; ?>
     </header>
     <main>

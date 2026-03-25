@@ -4,43 +4,39 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-//remplace index.php par la bonne route grâce au switch + escape les char chelous
 $base_path = str_replace('/index.php', '', $_SERVER['SCRIPT_NAME']);
-$request_uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-$path = '/' . ltrim(str_replace($base_path, '', $request_uri), '/');
+$request_uri = $_SERVER['REQUEST_URI'] ?? '/';
+$path = parse_url($request_uri, PHP_URL_PATH);
 
-//quand tu fait une nouvelle page faut indiquer le chemin ici
 $routes = [
-    '/'         => 'home.php',
-    '/home'    => 'home.php',
-    '/login'    => 'login.php',
-    '/register' => 'register.php',
-    '/logout'   => 'logout.php',
-    '/profil'   => 'profil.php',
+    '/'              => 'home.php',
+    '/home'          => 'home.php',
+    '/login'         => 'login.php',
+    '/register'      => 'register.php',
+    '/logout'        => 'logout.php',
+    '/profil'        => 'profil.php',
     '/resetpassword' => 'resetpassword.php',
-    '/update_profile' => 'update_profile.php',
-    '/sell' => 'sell.php'
+    '/update_profile'=> 'update_profile.php',
+    '/sell'          => 'sell.php',
+    '/cart'          => 'cart.php',       
+    '/validate'      => 'validate.php',   
+    '/admin'         => 'admin.php',      
 ];
 
-//vérifie si route existe
 if (array_key_exists($path, $routes)) {
-    
     $file_path = __DIR__ . '/src/handlers/' . $routes[$path];
-
     if (file_exists($file_path)) {
         require $file_path;
     } else {
         http_response_code(500);
-        
         echo "Erreur : Fichier introuvable dans " . $file_path;
     }
-    
 } else {
-        http_response_code(404);
-        $error_page = __DIR__ . '/src/templates/404.php';
-        if (file_exists($error_page)) {
-            include $error_page;
-        } else {
-            echo "404 - Page non trouvée";
-        }
+    http_response_code(404);
+    $error_page = __DIR__ . '/src/templates/404.php';
+    if (file_exists($error_page)) {
+        include $error_page;
+    } else {
+        echo "404 - Page non trouvée";
     }
+}
